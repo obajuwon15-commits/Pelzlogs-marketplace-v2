@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet - Pelz Logs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}body{background:#050714;color:#fff;min-height:100vh}nav{position:sticky;top:0;z-index:999;display:flex;justify-content:space-between;align-items:center;padding:15px 5%;background:rgba(5,7,20,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1)}.logo{color:#3b82f6;font-size:1.3rem;font-weight:700}.back{color:#94a3b8;text-decoration:none;font-size:14px}.nav-balance{color:#22c55e;font-weight:600;font-size:16px}.container{max-width:600px;margin:30px auto;padding:20px}.balance-card{background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);border-radius:20px;padding:30px;text-align:center;margin-bottom:25px}.balance-card h3{font-size:14px;font-weight:400;margin-bottom:10px;opacity:0.9}.balance-card h1{font-size:2.5rem;font-weight:700}.card{background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;margin-bottom:20px}.card h3{color:#3b82f6;margin-bottom:15px}.input-group{margin-bottom:15px}.input-group label{display:block;margin-bottom:8px;color:#94a3b8;font-size:14px}.input-group input{width:100%;padding:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;outline:none;font-size:16px}.btn{width:100%;padding:14px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);border:none;border-radius:10px;color:white;font-weight:600;cursor:pointer;font-size:16px}.btn:hover{opacity:0.9}.txn{padding:12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;font-size:14px}.txn.green{color:#22c55e}.txn.red{color:#ef4444}.alert{position:fixed;top:20px;right:20px;background:rgba(34,197,94,0.9);padding:15px 20px;border-radius:10px;display:none;z-index:9999}.alert.error{background:rgba(239,68,68,0.9)}</style>
+</head>
+<body>
+<div class="alert" id="alertBox"></div>
+<nav><a href="marketplace.html" class="back"><i class="fas fa-arrow-left"></i> Back to Shop</a><div class="logo">PELZ LOGS</div><div class="nav-balance" id="navBalance">₦0.00</div></nav>
+<div class="container">
+  <div class="balance-card"><h3>Current Balance</h3><h1 id="currentBalance">₦0.00</h1></div>
+  <div class="card"><h3><i class="fa-solid fa-wallet"></i> Fund Wallet</h3><div class="input-group"><label>Amount to Deposit (₦)</label><input type="number" id="amount" placeholder="Enter amount, Min ₦500"></div><button class="btn" onclick="payWithPaystack()">Pay Now</button></div>
+  <div class="card"><h3><i class="fa-solid fa-history"></i> Transaction History</h3><div id="txnList"></div></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co"; // FIXED: YOUR REAL URL
+const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U"; // YOUR ANON KEY
+const PAYSTACK_KEY = "pk_live_1c15c1b79c5c0f801244dd0be2cbb65f6659c946"; // YOUR TEST KEY
+
+const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const userName = localStorage.getItem('pelzlogsUser');
+if(!userName){ window.location.href = 'index.html'; }
+const userEmail = userName + '@pelzlogs.com';
+let walletData = {balance: 0, deposit: 0, spent: 0};
+
+function showAlert(msg, type='success'){
+  const a = document.getElementById('alertBox');
+  a.textContent = msg;
+  a.className = 'alert ' + (type==='error'?'error':'');
+  a.style.display = 'block';
+  setTimeout(() => a.style.display = 'none', 3000);
+}
+
+async function loadData(){
+  let { data, error } = await supaClient.from('wallets').select('*').eq('user_email', userEmail).single();
+  if(error && error.code === 'PGRST116'){
+    let { data: newWallet } = await supaClient.from('wallets').insert([{user_email: userEmail, balance:0, deposit:0, spent:0}]).select().single();
+    data = newWallet;
+  }
+  walletData = data || {balance:0, deposit:0, spent:0};
+  document.getElementById('currentBalance').textContent = '₦' + parseFloat(walletData.balance).toLocaleString();
+  document.getElementById('navBalance').textContent = '₦' + parseFloat(walletData.balance).toLocaleString();
+  
+  let { data: txns } = await supaClient.from('transactions').select('*').eq('user_email', userEmail).order('created_at', {ascending: false}).limit(10);
+  document.getElementById('txnList').innerHTML = !txns || txns.length === 0? '<p style="color:#94a3b8;text-align:center">No transactions yet</p>' : txns.map(t => `<div class="txn"><div><div><b>${t.type}</b></div><div style="color:#94a3b8;font-size:12px">${new Date(t.created_at).toLocaleString()}</div></div><div class="${t.type==='Deposit'?'green':'red'}">${t.type==='Deposit'?'+':'-'}₦${parseFloat(t.amount).toLocaleString()}</div></div>`).join('');
+}
+
+async function handlePaymentSuccess(response, amount){
+  const newBalance = parseFloat(walletData.balance) + amount;
+  const newDeposit = parseFloat(walletData.deposit) + amount;
+  await supaClient.from('wallets').update({balance: newBalance, deposit: newDeposit}).eq('user_email', userEmail);
+  await supaClient.from('transactions').insert([{user_email: userEmail, type: 'Deposit', amount: amount, ref: response.reference}]);
+  showAlert(`₦${amount.toLocaleString()} added!`);
+  document.getElementById('amount').value = '';
+  loadData();
+}
+
+function payWithPaystack(){
+  const amount = parseFloat(document.getElementById('amount').value);
+  if(!amount || amount < 500){showAlert('Minimum deposit is ₦500', 'error');return;}
+  
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_KEY,
+    email: userEmail,
+    amount: amount * 100, // kobo
+    currency: 'NGN',
+    ref: 'PL_' + Date.now(),
+    callback: function(response){handlePaymentSuccess(response, amount);},
+    onClose: function(){showAlert('Payment cancelled', 'error');}
+  });
+  handler.openIframe();
+}
+
+loadData();
+</script>
+</body>
+</html>
