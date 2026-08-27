@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet - Pelz Logs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:#050714;color:#fff;min-height:100vh}
+nav{position:sticky;top:0;z-index:999;display:flex;justify-content:space-between;align-items:center;padding:15px 5%;background:rgba(5,7,20,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1)}
+.logo{color:#3b82f6;font-size:1.3rem;font-weight:700}
+.back{color:#94a3b8;text-decoration:none;font-size:14px}
+.nav-balance{color:#22c55e;font-weight:600;font-size:16px}
+.container{max-width:600px;margin:30px auto;padding:20px}
+.balance-card{background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);border-radius:20px;padding:30px;text-align:center;margin-bottom:25px}
+.balance-card h3{font-size:14px;font-weight:400;margin-bottom:10px;opacity:0.9}
+.balance-card h1{font-size:2.5rem;font-weight:700}
+.card{background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;margin-bottom:20px}
+.card h3{color:#3b82f6;margin-bottom:15px}
+.input-group{margin-bottom:15px}
+.input-group label{display:block;margin-bottom:8px;color:#94a3b8;font-size:14px}
+.input-group input{width:100%;padding:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;outline:none;font-size:16px}
+.btn{width:100%;padding:14px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);border:none;border-radius:10px;color:white;font-weight:600;cursor:pointer;font-size:16px}
+.btn:hover{opacity:0.9}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.alert{position:fixed;top:20px;right:20px;background:rgba(34,197,94,0.9);padding:15px 20px;border-radius:10px;display:none;z-index:9999}
+.alert.error{background:rgba(239,68,68,0.9)}
+</style>
+</head>
+<body>
+<div class="alert" id="alertBox"></div>
+<nav>
+  <a href="marketplace.html" class="back"><i class="fas fa-arrow-left"></i> Back to Shop</a>
+  <div class="logo">PELZ LOGS</div>
+  <div class="nav-balance" id="navBalance">₦0.00</div>
+</nav>
+
+<div class="container">
+  <div class="balance-card">
+    <h3>Current Balance</h3>
+    <h1 id="currentBalance">₦0.00</h1>
+  </div>
+  
+  <div class="card">
+    <h3><i class="fa-solid fa-wallet"></i> Fund Wallet</h3>
+    <div class="input-group">
+      <label>Amount to Deposit (₦)</label>
+      <input type="number" id="amount" placeholder="Enter amount, Min ₦500" min="500">
+    </div>
+    <button class="btn" id="payBtn" onclick="payWithPaystack()">Pay Now</button>
+  </div>
+  
+  <div class="card">
+    <h3><i class="fa-solid fa-history"></i> Transaction History</h3>
+    <div id="txnList"><p style="color:#94a3b8;text-align:center">No transactions yet</p></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+const PAYSTACK_KEY = "pk_test_93692e503784949313c71a1abb5868c2769162a5";
+
+let currentUser = null;
+
+async function getCurrentUser() {
+    const username = localStorage.getItem('pelzlogsUser') // FIXED
+    const email = localStorage.getItem('pelzlogsEmail')
+    if(!username || !email) return null;
+    
+    // Get full user data from Supabase including wallet_balance and id
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/users?username=eq.${username}&select=*`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        })
+        const data = await res.json()
+        if(data[0]) return data[0]
+    } catch(e){console.log('GET USER ERROR:', e)}
+    return null
+}
+
+async function loadData() {
+    currentUser = await getCurrentUser()
+    if(!currentUser) {
+        showAlert('Please login first', 'error');
+        return;
+    }
+    
+    document.getElementById('currentBalance').textContent = `₦${(currentUser.wallet_balance || 0).toLocaleString()}`;
+    document.getElementById('navBalance').textContent = `₦${(currentUser.wallet_balance || 0).toLocaleString()}`;
+}
+
+function showAlert(msg, type = 'success') {
+    const alertBox = document.getElementById('alertBox')
+    alertBox.textContent = msg
+    alertBox.className = type === 'error' ? 'alert error' : 'alert'
+    alertBox.style.display = 'block'
+    setTimeout(() => alertBox.style.display = 'none', 3000)
+}
+
+async function handlePaymentSuccess(response, amount){
+    const btn = document.getElementById('payBtn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    
+    const newBalance = (currentUser.wallet_balance || 0) + amount;
+    
+    // UPDATE WITH ERROR LOG
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${currentUser.id}`, {
+        method: 'PATCH',
+        headers: {
+            'apikey': SUPABASE_ANON_KEY, 
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({wallet_balance: newBalance})
+    })
+    const result = await res.json()
+    console.log('SUPABASE UPDATE:', result) // CHECK THIS IN CONSOLE
+    
+    showAlert(`₦${amount.toLocaleString()} added successfully!`);
+    document.getElementById('amount').value = '';
+    btn.disabled = false;
+    btn.textContent = 'Pay Now';
+    loadData();
+}
+
+function payWithPaystack(){
+    if(!currentUser){showAlert('Please login first', 'error');return;}
+    
+    const amount = parseFloat(document.getElementById('amount').value);
+    if(!amount || amount < 500){showAlert('Minimum deposit is ₦500', 'error');return;}
+    
+    let handler = PaystackPop.setup({
+        key: PAYSTACK_KEY,
+        email: currentUser.email,
+        amount: amount * 100,
+        currency: 'NGN',
+        ref: 'PL_' + Date.now(),
+        callback: function(response){handlePaymentSuccess(response, amount);},
+        onClose: function(){showAlert('Payment cancelled', 'error');}
+    });
+    handler.openIframe();
+}
+
+loadData();
+</script>
+</body>
+</html>
