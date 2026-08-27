@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet - Pelz Logs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}body{background:#050714;color:#fff;min-height:100vh}nav{position:sticky;top:0;z-index:999;display:flex;justify-content:space-between;align-items:center;padding:15px 5%;background:rgba(5,7,20,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1)}.logo{color:#3b82f6;font-size:1.3rem;font-weight:700}.back{color:#94a3b8;text-decoration:none;font-size:14px}.nav-balance{color:#22c55e;font-weight:600;font-size:16px}.container{max-width:600px;margin:30px auto;padding:20px}.balance-card{background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);border-radius:20px;padding:30px;text-align:center;margin-bottom:25px}.balance-card h3{font-size:14px;font-weight:400;margin-bottom:10px;opacity:0.9}.balance-card h1{font-size:2.5rem;font-weight:700}.card{background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;margin-bottom:20px}.card h3{color:#3b82f6;margin-bottom:15px}.input-group{margin-bottom:15px}.input-group label{display:block;margin-bottom:8px;color:#94a3b8;font-size:14px}.input-group input{width:100%;padding:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:white;outline:none;font-size:16px}.btn{width:100%;padding:14px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);border:none;border-radius:10px;color:white;font-weight:600;cursor:pointer;font-size:16px}.btn:hover{opacity:0.9}.btn:disabled{opacity:0.5;cursor:not-allowed}.txn{padding:12px;background:rgba(0,0,0,0.3);border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;font-size:14px}.txn.green{color:#22c55e}.txn.red{color:#ef4444}.alert{position:fixed;top:20px;right:20px;background:rgba(34,197,94,0.9);padding:15px 20px;border-radius:10px;display:none;z-index:9999}.alert.error{background:rgba(239,68,68,0.9)}</style>
+</head>
+<body>
+<div class="alert" id="alertBox"></div>
+<nav><a href="marketplace.html" class="back"><i class="fas fa-arrow-left"></i> Back to Shop</a><div class="logo">PELZ LOGS</div><div class="nav-balance" id="navBalance">₦0.00</div></nav>
+<div class="container">
+  <div class="balance-card"><h3>Current Balance</h3><h1 id="currentBalance">₦0.00</h1></div>
+  <div class="card"><h3><i class="fa-solid fa-wallet"></i> Fund Wallet</h3><div class="input-group"><label>Amount to Deposit (₦)</label><input type="number" id="amount" placeholder="Enter amount, Min ₦500"></div><button class="btn" id="payBtn" onclick="payWithPaystack()">Pay Now</button></div>
+  <div class="card"><h3><i class="fa-solid fa-history"></i> Transaction History</h3><div id="txnList"></div></div>
+</div>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+   
+const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+const PAYSTACK_KEY = "pk_test_93692e503784949313c71a1abb5868c2769162a5";
+
+function getCurrentUser() {
+    const user = localStorage.getItem('pelz_current_user')
+    return user ? JSON.parse(user) : null
+}
+
+function updateWalletUI() {
+    const user = getCurrentUser()
+    if (!user) return
+    document.getElementById('walletBalance').textContent = `₦${user.wallet_balance.toLocaleString()}`
+}
+
+function fundWallet() {
+    const amount = parseInt(document.getElementById('fundAmount').value)
+    if (!amount || amount < 100) { alert('Minimum ₦100'); return }
+    
+    const user = getCurrentUser()
+    const handler = PaystackPop.setup({
+        key: PAYSTACK_KEY,
+        email: user.email,
+        amount: amount * 100,
+        currency: 'NGN',
+        callback: async function(response){
+            user.wallet_balance += amount
+            localStorage.setItem('pelz_current_user', JSON.stringify(user))
+            
+            await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`, {
+                method: 'PATCH',
+                headers: {'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json'},
+                body: JSON.stringify({wallet_balance: user.wallet_balance})
+            })
+            
+            updateWalletUI()
+            alert(`₦${amount} deposited successfully! Ref: ${response.reference}`)
+        },
+        onClose: function(){ alert('Payment cancelled') }
+    });
+    handler.openIframe();
+}
+
+document.addEventListener('DOMContentLoaded', updateWalletUI)
+</script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PELZ LOGS - Marketplace</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{background:linear-gradient(180deg,#0a0a0a 0%, #1a0f2e 100%);color:#fff;font-family:'Segoe UI',Arial;padding:15px;min-height:100vh;padding-bottom:100px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.logo{color:#3b82f6;font-size:22px;font-weight:bold}
+.telegram-btn{background:#0088cc;color:#fff;padding:8px 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px}
+.balance{background:#3d1a2a;color:#22c55e;padding:8px 15px;border-radius:20px;font-weight:bold}
+.search{width:100%;padding:12px;background:#1e1e2e;border:1px solid #333;border-radius:10px;color:#fff;margin-bottom:15px}
+.category{display:flex;align-items:center;gap:8px;color:#3b82f6;font-size:18px;font-weight:bold;margin:20px 0 10px}
+.product-card{background:#1e1e2e;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:12px;display:flex;gap:12px}
+.product-icon{width:45px;height:45px;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#333}
+.product-icon img{width:100%;height:100%;object-fit:cover}
+.product-title{font-size:16px;font-weight:bold;margin:0}
+.price-badge{background:#3b82f6;color:#fff;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:bold;display:inline-block;margin:5px 0}
+.stock-info{font-size:13px;color:#aaa;margin:5px 0}
+.qty-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.qty-input{width:70px;padding:6px;background:#0f172a;border:1px solid #333;color:#fff;border-radius:6px}
+.item-link-row{display:flex;align-items:center;background:#0f172a;padding:8px;border-radius:6px;margin:5px 0;gap:6px}
+.item-link{flex:1;font-size:12px;color:#60a5fa;word-break:break-all}
+.copy-small{background:#3b82f6;border:none;color:#fff;padding:5px 8px;border-radius:5px;cursor:pointer;font-size:11px}
+.buy-btn-card{width:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border:none;color:#fff;padding:10px;border-radius:8px;font-weight:bold;margin-top:8px;cursor:pointer}
+.buy-btn-card:disabled{background:#475569;cursor:not-allowed}
+.admin-badge{color:#fbbf24;font-size:12px}
+.alert{position:fixed;top:20px;right:20px;background:rgba(34,197,94,0.9);padding:12px 16px;border-radius:10px;display:none;z-index:9999}
+.alert.error{background:rgba(239,68,68,0.9)}
+.telegram-blink{position: fixed;bottom: 90px;right: 20px;background: #0088cc;color: white;width: 55px;height: 55px;border-radius: 50%;display: flex;align-items:center;justify-content:center;font-size: 28px;z-index: 1000;text-decoration: none;box-shadow: 0 0 15px rgba(0,136,204,0.5);animation: blink 4s infinite;}
+@keyframes blink{0%, 80% { opacity: 1; transform: scale(1); }85%, 90% { opacity: 0.3; transform: scale(0.9); }95%, 100% { opacity: 1; transform: scale(1); }}
+.telegram-label{position: fixed;bottom: 150px;right: 15px;background: rgba(0,0,0,0.7);color: white;padding: 5px 10px;border-radius: 8px;font-size: 12px;z-index: 1000;animation: blink 4s infinite;}
+.note-banner{background:#1e1e2e;border:1px solid #333;color:#fbbf24;padding:12px 15px;border-radius:10px;font-size:13px;font-weight:600;text-align:center;margin:15px 0 20px 0}
+#copyModal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center}
+.copy-box{background:#1e1e2e;padding:25px;border-radius:16px;text-align:center;max-width:320px;border:1px solid #333}
+.copy-box h3{color:#3b82f6;margin-bottom:10px}
+.copy-btn{background:linear-gradient(90deg,#3b82f6,#8b5cf6);color:white;border:none;padding:12px 20px;border-radius:8px;width:100%;cursor:pointer;font-weight:bold;font-size:15px;transition:0.3s}
+.copy-btn:disabled{background:#475569;cursor:not-allowed;opacity:0.6}
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#1e1e2e;border-top:1px solid #333;display:flex;justify-content:space-around;padding:10px 0;z-index:999}
+.bottom-nav a{color:#94a3b8;text-decoration:none;text-align:center;font-size:11px}
+.bottom-nav a.active{color:#3b82f6}
+.bottom-nav i{display:block;font-size:20px;margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="alert" id="alertBox"></div>
+<div class="header">
+  <div class="logo">PELZ LOGS</div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="https://t.me/Pelzlogs" target="_blank" class="telegram-btn"><i class="fab fa-telegram"></i></a>
+    <div class="balance" id="walletBalance">₦0</div>
+  </div>
+</div>
+<h1>Marketplace</h1>
+<input type="text" class="search" placeholder="Search products..." onkeyup="searchProducts(this.value)">
+<div class="note-banner">Note: copy the link before purchasing</div>
+<div id="products">Loading...</div>
+
+<a href="https://t.me/Pelzlogs" target="_blank" class="telegram-blink"><i class="fab fa-telegram"></i></a>
+<div class="telegram-label">Customer Line</div>
+
+<div id="copyModal">
+  <div class="copy-box">
+    <i class="fas fa-exclamation-triangle" style="font-size:40px;color:#fbbf24;margin-bottom:10px"></i>
+    <h3>Don't Forget To Copy The Links of the product u want to buy!</h3>
+    <p style="color:#94a3b8;font-size:14px;margin:10px 0 20px 0">After payment, go to Orders page to see your accounts and copy them</p>
+    <button id="continueBtn" onclick="closeModal()" class="copy-btn" disabled>Wait 14s...</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <a href="marketplace.html" class="active"><i class="fas fa-store"></i>Shop</a>
+  <a href="wallet.html"><i class="fas fa-wallet"></i>Wallet</a>
+  <a href="orders.html"><i class="fas fa-box"></i>Orders</a>
+  <a href="profile.html"><i class="fas fa-user"></i>Profile</a>
+</div>
+
+<script>
+   document.addEventListener('DOMContentLoaded', () => {
+    const user = JSON.parse(localStorage.getItem('pelz_current_user'))
+    if(user) document.getElementById('userBalance').textContent = `₦${user.wallet_balance.toLocaleString()}`
+})
+const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const userName = localStorage.getItem('pelzlogsUser');
+if(!userName){ window.location.href = 'index.html'; }
+const userEmail = userName + '@pelzlogs.com';
+
+let walletData = {balance: 0, spent: 0};
+let allProducts = [];
+let currentBuyData = null;
+let popupCountdown = null;
+
+function showAlert(msg, type='success'){ 
+  const a = document.getElementById('alertBox'); 
+  a.textContent = msg; 
+  a.className = 'alert ' + (type==='error'?'error':'');
+  a.style.display = 'block'; 
+  setTimeout(() => a.style.display = 'none', 3000); 
+}
+function copyText(text) { navigator.clipboard.writeText(text); showAlert("Copied: " + text); }
+
+async function loadWallet(){
+  let { data } = await supaClient.from('wallets').select('*').eq('user_email', userEmail);
+  walletData = data[0] || {balance: 0, spent: 0};
+  document.getElementById('walletBalance').textContent = '₦' + (walletData.balance || 0).toLocaleString();
+}
+
+async function loadProducts() {
+  const { data } = await supaClient.from('products').select('*').order('created_at', {ascending: false});
+  allProducts = data || [];
+  renderProducts(allProducts);
+}
+
+function renderProducts(data){
+  let html = '';
+  let currentCat = '';
+  data.forEach(p => {
+    const catName = p.category || p.name;
+    if(catName!== currentCat){
+      currentCat = catName;
+      html += `<div class="category">${catName.toUpperCase()}</div>`;
+    }
+    const links = p.links || [];
+    const stock = links.length;
+    const img = p.image_url || 'https://via.placeholder.com/45/1e1e2e/3b82f6?text=PL';
+
+    html += `
+    <div class="product-card">
+      <div class="product-icon"><img src="${img}" alt="${p.name}"></div>
+      <div style="flex:1">
+        <h3 class="product-title">${p.name}</h3>
+        <span class="price-badge">₦${parseFloat(p.price).toLocaleString()}</span>
+        <span class="admin-badge"> 👑 Admin</span>
+        <div class="stock-info">Available: ${stock}</div>
+        ${stock > 0? links.slice(0,3).map((link) => {
+          return `
+          <div class="item-link-row">
+            <i class="fas fa-lock"></i>
+            <span class="item-link">${link}</span>
+            <button class="copy-small" onclick="copyText('${link}')"><i class="fas fa-copy"></i></button>
+          </div>`
+        }).join('') : ''}
+        ${stock > 0? `
+          <div class="qty-row">Qty: <input type="number" value="1" min="1" max="${stock}" class="qty-input" id="qty-${p.id}"></div>
+          <button class="buy-btn-card" onclick="buyWithQty('${p.id}', '${p.name.replace(/'/g, "\\'")}', ${p.price})">Buy Now</button>
+        ` : `<button class="buy-btn-card" disabled>Out of Stock</button>`}
+      </div>
+    </div>`;
+  });
+  document.getElementById('products').innerHTML = html || 'No products yet.';
+}
+
+function searchProducts(val){
+  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
+  renderProducts(filtered);
+}
+
+function buyWithQty(productId, productName, price) {
+  const qty = parseInt(document.getElementById('qty-'+productId).value);
+  currentBuyData = {productId, productName, price, qty};
+  document.getElementById('copyModal').style.display = 'flex';
+  let timeLeft = 14;
+  const btn = document.getElementById('continueBtn');
+  btn.disabled = true;
+  btn.textContent = `Wait ${timeLeft}s...`;
+  clearInterval(popupCountdown);
+  popupCountdown = setInterval(() => {
+    timeLeft--;
+    btn.textContent = `Wait ${timeLeft}s...`;
+    if(timeLeft <= 0){
+      clearInterval(popupCountdown);
+      btn.disabled = false;
+      btn.textContent = 'I Understand - Continue';
+    }
+  }, 1000);
+}
+
+function closeModal(){
+  document.getElementById('copyModal').style.display = 'none';
+  clearInterval(popupCountdown);
+  processPurchase();
+}
+
+// ATOMIC RPC PURCHASE
+async function processPurchase() {
+  const {productId, productName, price, qty} = currentBuyData;
+  const totalPrice = qty * price;
+  
+  const btn = document.getElementById('continueBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  try {
+    const { data, error } = await supaClient.rpc('process_order', {
+      p_user_email: userEmail,
+      p_product_id: productId,
+      p_total_price: totalPrice,
+      p_qty: qty
+    });
+
+    if(error) throw error;
+    if(!data.success){
+      showAlert(data.error, 'error');
+      return;
+    }
+
+    walletData.balance = data.new_balance;
+    document.getElementById('walletBalance').textContent = '₦' + data.new_balance.toLocaleString();
+    
+    showAlert(`${qty} account(s) purchased! ₦${totalPrice.toLocaleString()} deducted`);
+    await loadProducts();
+    setTimeout(() => window.location.href = 'orders.html', 1500);
+
+  } catch(err) {
+    showAlert('Purchase failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'I Understand - Continue';
+  }
+}
+
+// AUTO REFRESH WALLET
+loadWallet();
+loadProducts();
+setInterval(loadWallet, 5000); // Check every 5s
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) loadWallet(); // Refresh when tab comes back
+});
+</script>
+</body>
+</html>
