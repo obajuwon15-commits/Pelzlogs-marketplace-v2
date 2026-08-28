@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders - Pelz Logs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}body{background:#050714;color:#fff;padding:20px;padding-bottom:100px;min-height:100vh;position:relative}.bg-circle{position:absolute;border-radius:50%;filter:blur(80px);z-index:0}.circle1{width:300px;height:300px;background:rgba(139,92,246,0.3);top:10%;left:10%}.circle2{width:200px;height:200px;background:rgba(59,130,246,0.2);bottom:10%;right:15%}nav{position:sticky;top:0;z-index:999;display:flex;justify-content:space-between;align-items:center;padding:15px 0;margin-bottom:20px}nav a{color:#94a3b8;text-decoration:none;font-size:14px}.logo{color:#3b82f6;font-size:1.2rem;font-weight:700}.header{font-weight:700;color:white;font-size:20px;margin-bottom:5px;z-index:10;position:relative}.sub{color:#94a3b8;font-size:13px;margin-bottom:20px;z-index:10;position:relative}.order{background:rgba(30,41,59,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px;margin-bottom:15px;z-index:10;position:relative}.tag{display:inline-block;background:rgba(59,130,246,0.2);color:#3b82f6;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:5px}.status{background:rgba(34,197,94,0.2);color:#22c55e;padding:4px 10px;border-radius:20px;font-size:12px;float:right}.status.pending{background:rgba(251,191,36,0.2);color:#fbbf24}.order-id{color:#94a3b8;font-size:12px;margin-bottom:8px}.order-info{font-size:14px;margin-bottom:8px}.order-info b{color:white}.order-date{color:#94a3b8;font-size:12px}.view-btn{width:100%;padding:12px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 100%);border:none;border-radius:10px;color:white;font-weight:600;cursor:pointer;margin-top:10px;font-size:15px}.details-box{display:none;background:rgba(15,23,42,0.5);padding:12px;border-radius:10px;margin-top:10px;border:1px solid #475569}.account-row{display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:#0f172a;padding:10px;border-radius:8px;margin:8px 0}.cred-line{font-size:12px;width:100%;word-break:break-all}.cred-line b{color:#60a5fa}.copy-small{background:#3b82f6;border:none;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:11px;margin-top:4px}.copy-all{background:rgba(59,130,246,0.2);color:#3b82f6;border:none;padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;float:right}.important{background:rgba(245,158,11,0.1);border:1px solid #f59e0b;color:#fbbf24;padding:10px;border-radius:8px;font-size:12px;margin-top:10px}.empty{text-align:center;color:#94a3b8;padding:40px}.loading{text-align:center;color:#3b82f6;padding:40px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(5,7,20,0.9);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-around;padding:10px 0;z-index:999}
+.bottom-nav a{color:#94a3b8;text-decoration:none;font-size:12px;text-align:center}
+.bottom-nav a.active{color:#3b82f6}
+.bottom-nav i{display:block;font-size:18px;margin-bottom:3px}</style>
+</head>
+<body>
+<div class="bg-circle circle1"></div><div class="bg-circle circle2"></div>
+
+<nav>
+  <a href="marketplace.html"><i class="fas fa-arrow-left"></i> Back to Shop</a>
+  <div class="logo">PELZ LOGS</div>
+  <a href="wallet.html"><i class="fas fa-wallet"></i> Wallet</a>
+</nav>
+
+<div class="header">My Orders</div>
+<p class="sub">Track and manage your order history</p>
+
+<div id="orders"><p class="loading"><i class="fas fa-spinner fa-spin"></i> Loading orders...</p></div>
+
+<div class="bottom-nav">
+  <a href="dashboard.html"><i class="fas fa-home"></i>Home</a>
+  <a href="marketplace.html"><i class="fas fa-store"></i>Shop</a>
+  <a href="orders.html" class="active"><i class="fas fa-box"></i>Orders</a>
+  <a href="wallet.html"><i class="fas fa-wallet"></i>Wallet</a>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+window.addEventListener('DOMContentLoaded', async () => {
+  const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+  const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+
+  if(!window.supabase){
+    alert("Supabase failed to load. Check internet connection");
+    return;
+  }
+
+  const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  let currentUser = localStorage.getItem('pelzlogsUser');
+  if(!currentUser){ window.location.href = 'index.html'; return; }
+
+  const userEmail = currentUser;
+
+  async function loadOrders(){
+    let { data, error } = await supaClient
+     .from('orders')
+     .select('*')
+     .eq('user_email', userEmail)
+     .order('created_at', {ascending: false});
+
+    if(error) {
+      document.getElementById('orders').innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+      return;
+    }
+
+    // GROUP ORDERS BY PRODUCT + DATE
+    const grouped = {};
+    (data || []).forEach(o => {
+      const key = o.product_name + '_' + new Date(o.created_at).toLocaleDateString();
+      if(!grouped[key]) grouped[key] = {...o, accounts: []};
+      if(o.delivered_link) grouped[key].accounts.push({
+        link: o.delivered_link,
+        email: o.delivered_email,  // CHANGED: Now reading the new columns
+        password: o.delivered_password,
+        cookies: o.delivered_cookies
+      });
+      grouped[key].total_qty = (grouped[key].total_qty || 0) + 1;
+    });
+
+    renderOrders(Object.values(grouped));
+  }
+
+  function renderOrders(myOrders){
+    let html = "";
+    if(myOrders.length == 0){
+      html = "<div class='order'><p class='empty'>No orders yet. Buy something first!</p></div>"
+    } else {
+      myOrders.forEach((o, index)=>{
+        let allText = o.accounts.map(a => `Email: ${a.email || 'N/A'}\nPass: ${a.password || 'N/A'}\nLink: ${a.link || 'N/A'}\nCookies: ${a.cookies || 'N/A'}\n---`).join('\n');
+        
+        html += `
+        <div class="order">
+          <div class="order-id">Order ID: PL${o.id} | Qty: ${o.total_qty}</div>
+          <div class="order-header"><div><span class="tag">PRODUCT</span><span class="status ${o.status.toLowerCase()}">${o.status}</span></div></div>
+          <div class="order-info"><b>${o.product_name}</b> - ₦${parseFloat(o.total * o.total_qty).toLocaleString()}<br><span class="order-date">Date: ${new Date(o.created_at).toLocaleString()}</span></div>
+
+          ${o.status.toLowerCase() === 'delivered'?
+          `<button class="view-btn" onclick="toggleDetails(${index})"><i class="fas fa-eye"></i> View ${o.total_qty} Account(s)</button>
+          <div class="details-box" id="details${index}">
+            <button class="copy-all" onclick="copyText(\`${allText}\`)"><i class="fas fa-copy"></i> Copy All</button>
+            <div style="clear:both;margin-bottom:8px"><b>Delivered Credentials</b></div>
+            <div id="accounts${index}">
+              ${o.accounts.map((acc, i) => `
+                <div class="account-row">
+                  <div class="cred-line"><b>Email:</b> ${acc.email || 'N/A'}</div>
+                  <div class="cred-line"><b>Password:</b> ${acc.password || 'N/A'}</div>
+                  <div class="cred-line"><b>Link:</b> ${acc.link || 'N/A'}</div>
+                  ${acc.cookies? `<div class="cred-line"><b>Cookies:</b> ${acc.cookies}</div>` : ''}
+                  <button class="copy-small" onclick="copyText('Email: ${acc.email || 'N/A'}\\nPass: ${acc.password || 'N/A'}\\nLink: ${acc.link || 'N/A'}')"><i class="fas fa-copy"></i> Copy This Account</button>
+                </div>
+              `).join('')}
+            </div>
+            <div class="important">⚠️ <b>Important</b><br>- Store your account details securely<br>- Do not share with anyone</div>
+          </div>`
+          : `<button class="view-btn" disabled style="opacity:0.5">Processing...</button>`}
+        </div>`
+      })
+    }
+    document.getElementById('orders').innerHTML = html;
+  }
+
+  window.toggleDetails = function(i){
+    let box = document.getElementById('details'+i);
+    box.style.display = box.style.display == 'block'? 'none' : 'block';
+  }
+
+  window.copyText = function(text){
+    navigator.clipboard.writeText(text);
+    alert("Copied!");
+  }
+
+  loadOrders();
+});
+</script>
+</body>
+</html>

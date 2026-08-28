@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Pelz Logs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}body{background:#050714;color:#fff;min-height:100vh;position:relative;padding-bottom:80px}.bg-circle{position:absolute;border-radius:50%;filter:blur(80px);z-index:0}.circle1{width:300px;height:300px;background:rgba(139,92,246,0.3);top:10%;left:10%}.circle2{width:200px;height:200px;background:rgba(59,130,246,0.2);bottom:10%;right:15%}nav{position:sticky;top:0;z-index:999;display:flex;justify-content:space-between;align-items:center;padding:15px 5%;background:rgba(5,7,20,0.8);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1)}.logo{color:#3b82f6;font-size:1.3rem;font-weight:700}.nav-balance{color:#22c55e;font-weight:600;font-size:16px}.container{max-width:600px;margin:30px auto;padding:20px;position:relative;z-index:10}.welcome-card{background:linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);border-radius:20px;padding:25px;margin-bottom:25px}.welcome-card h2{font-size:1.5rem;margin-bottom:5px}.welcome-card p{opacity:0.9;font-size:14px}.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:25px}.stat-card{background:rgba(30,41,59,0.6);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center}.stat-card i{font-size:24px;color:#3b82f6;margin-bottom:10px}.stat-card h4{color:#94a3b8;font-size:12px;margin-bottom:5px}.stat-card p{font-size:22px;font-weight:700}.quick-actions{margin-bottom:25px}.quick-actions h3{margin-bottom:15px;color:#3b82f6}.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.action-btn{background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:15px;text-align:center;text-decoration:none;color:white;transition:0.3s}.action-btn:hover{border-color:#3b82f6;transform:translateY(-3px)}.action-btn i{font-size:22px;margin-bottom:8px;display:block;color:#8b5cf6}.recent{margin-bottom:25px}.recent h3{margin-bottom:15px;color:#3b82f6}.order-item{background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;margin-bottom:10px;font-size:14px}.order-item .status{float:right;background:rgba(34,197,94,0.2);color:#22c55e;padding:3px 8px;border-radius:12px;font-size:11px}.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(5,7,20,0.9);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-around;padding:10px 0;z-index:999}.bottom-nav a{color:#94a3b8;text-decoration:none;font-size:12px;text-align:center}.bottom-nav a.active{color:#3b82f6}.bottom-nav i{display:block;font-size:18px;margin-bottom:3px}</style>
+</head>
+<body>
+<div class="bg-circle circle1"></div><div class="bg-circle circle2"></div>
+
+<nav>
+  <div class="logo">PELZ LOGS</div>
+  <div class="nav-balance" id="navBalance">₦0.00</div>
+</nav>
+
+<div class="container">
+  <div class="welcome-card">
+    <h2 id="welcomeUser">Welcome Back!</h2>
+    <p>Manage your accounts and track your purchases</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <i class="fas fa-wallet"></i>
+      <h4>Wallet Balance</h4>
+      <p id="walletBalance">₦0</p>
+    </div>
+    <div class="stat-card">
+      <i class="fas fa-shopping-bag"></i>
+      <h4>Total Orders</h4>
+      <p id="totalOrders">0</p>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <h3>Quick Actions</h3>
+    <div class="action-grid">
+      <a href="marketplace.html" class="action-btn"><i class="fas fa-store"></i> Marketplace</a>
+      <a href="wallet.html" class="action-btn"><i class="fas fa-plus-circle"></i> Fund Wallet</a>
+      <a href="orders.html" class="action-btn"><i class="fas fa-box"></i> My Orders</a>
+      <a href="tg://resolve?domain=pelzlogs" onclick="openTelegram('pelzlogs')" class="action-btn"><i class="fab fa-telegram"></i> Support</a>
+    </div>
+  </div>
+
+  <div class="recent">
+    <h3>Recent Orders</h3>
+    <div id="recentOrders"><p style="color:#94a3b8;text-align:center">Loading...</p></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <a href="dashboard.html" class="active"><i class="fas fa-home"></i>Home</a>
+  <a href="marketplace.html"><i class="fas fa-store"></i>Shop</a>
+  <a href="orders.html"><i class="fas fa-box"></i>Orders</a>
+  <a href="wallet.html"><i class="fas fa-wallet"></i>Wallet</a>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+  const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+  const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const userName = localStorage.getItem('pelzlogsUser');
+  if(!userName){ window.location.href = 'index.html'; }
+  
+  document.getElementById('welcomeUser').textContent = `Welcome Back, ${userName}!`;
+
+  function openTelegram(username) {
+    window.location.href = `tg://resolve?domain=${username}`;
+    setTimeout(() => {
+      window.open(`https://t.me/${username}`, '_blank');
+    }, 2000);
+  }
+  window.openTelegram = openTelegram;
+
+  async function loadDashboard(){
+    // 1. LOAD WALLET
+    let { data: user } = await supaClient.from('users').select('wallet_balance').eq('username', userName).single();
+    let balance = user? user.wallet_balance : 0;
+    document.getElementById('walletBalance').textContent = '₦' + parseFloat(balance).toLocaleString();
+    document.getElementById('navBalance').textContent = '₦' + parseFloat(balance).toLocaleString();
+
+    // 2. FIX: LOAD ORDERS - ONLY CHECK user_email COLUMN
+    let { data: orders, error } = await supaClient
+      .from('orders')
+      .select('*')
+      .eq('user_email', userName) // SIMPLE - NO OR
+      .order('created_at', {ascending: false})
+      .limit(3);
+    
+    if(error) console.log("Orders error:", error);
+
+    // 3. COUNT ALL ORDERS NOT JUST 3
+    let { count } = await supaClient
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_email', userName);
+
+    document.getElementById('totalOrders').textContent = count || 0;
+    
+    let html = '';
+    if(!orders || orders.length === 0){
+      html = '<p style="color:#94a3b8;text-align:center">No orders yet</p>';
+    } else {
+      orders.forEach(o => {
+        html += `<div class="order-item"><span class="status">${o.status}</span><b>${o.product_name}</b><br><span style="color:#94a3b8;font-size:12px">₦${parseFloat(o.total || o.price).toLocaleString()} - ${new Date(o.created_at).toLocaleDateString()}</span></div>`;
+      });
+    }
+    document.getElementById('recentOrders').innerHTML = html;
+  }
+  loadDashboard();
+  setInterval(loadDashboard, 5000);
+});
+</script>
+
+</body>
+</html>
