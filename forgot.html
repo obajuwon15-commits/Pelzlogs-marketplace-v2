@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forgot Password - PELZ LOGS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body{background:linear-gradient(180deg,#0a0a0a 0%, #1a0f2e 100%);color:#fff;font-family:'Segoe UI',Arial;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}
+.box{background:#1e1e2e;border:1px solid #333;padding:30px;border-radius:16px;width:100%;max-width:400px;text-align:center}
+h2{color:#3b82f6;margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:10px}
+.input-group{text-align:left;margin-bottom:15px}
+.input-group label{font-size:13px;color:#aaa;display:block;margin-bottom:6px}
+input{width:100%;padding:12px;background:#0f172a;border:1px solid #333;border-radius:8px;color:#fff;box-sizing:border-box}
+.btn{width:100%;padding:12px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border:none;color:#fff;border-radius:8px;font-weight:bold;cursor:pointer;font-size:15px;margin-top:10px}
+.btn:disabled{opacity:0.6;cursor:not-allowed}
+.back{margin-top:15px;color:#94a3b8;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.error{background:#7f1d1d;border:1px solid #ef4444;color:#fca5a5;padding:12px;border-radius:8px;margin-bottom:15px;display:none}
+.success{background:#064e3b;border:1px solid #10b981;color:#6ee7b7;padding:12px;border-radius:8px;margin-bottom:15px;display:none;word-break:break-word}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2><i class="fas fa-key"></i> Forgot Password</h2>
+  
+  <div class="error" id="errorBox"></div>
+  <div class="success" id="successBox"></div>
+
+  <div class="input-group">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter your username">
+  </div>
+  
+  <div class="input-group">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="Enter your gmail">
+  </div>
+
+  <button class="btn" id="showBtn" onclick="showPassword()">Show Password</button>
+  
+  <a href="login.html" class="back"><i class="fas fa-arrow-left"></i> Back to Login</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://tubhdumzucdephfvzaju.supabase.co";
+const SUPABASE_ANON = "sb_publishable_DWEhhCXBjLZUH9mpWZUAkg_z-vRgm4U";
+const supaClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+function showError(msg){
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.style.display = 'block';
+  document.getElementById('successBox').style.display = 'none';
+}
+
+function showSuccess(msg){
+  const box = document.getElementById('successBox');
+  box.textContent = msg;
+  box.style.display = 'block';
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+async function showPassword(){
+  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const btn = document.getElementById('showBtn');
+
+  if(!username || !email){
+    showError('Please fill both username and email');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+
+  // CHECK USERS TABLE WITH ILIKE
+  const { data, error } = await supaClient
+    .from('users')  // THIS IS THE KEY - YOUR TABLE NAME
+    .select('password')
+    .ilike('username', username)
+    .ilike('email', email)
+    .maybeSingle();
+
+  btn.disabled = false;
+  btn.textContent = 'Show Password';
+
+  if(error){
+    showError('DB Error: ' + error.message);
+    console.log(error);
+    return;
+  }
+  
+  if(!data){
+    showError('Email does not match username');
+    return;
+  }
+
+  showSuccess('Your password is: ' + data.password);
+}
+</script>
+</body>
+</html>
